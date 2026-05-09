@@ -1,0 +1,18 @@
+{
+  "name": "flip7-online",
+  "version": "1.0.0",
+  "description": "Online Flip 7 — play with friends in your browser",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

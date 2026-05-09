@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#0f172a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Flip 7</title>
+<link rel="stylesheet" href="/style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23ef4444'/%3E%3Ctext x='50' y='72' font-size='64' font-weight='900' text-anchor='middle' fill='white' font-family='system-ui'%3E7%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- ===== LOBBY (pre-room) ===== -->
+<section id="screen-home" class="screen">
+  <div class="home-inner">
+    <div class="logo">
+      <div class="logo-card logo-card-1">F</div>
+      <div class="logo-card logo-card-2">L</div>
+      <div class="logo-card logo-card-3">I</div>
+      <div class="logo-card logo-card-4">P</div>
+      <div class="logo-7">7</div>
+    </div>
+    <p class="tagline">Push your luck. Beat your friends.</p>
+
+    <label class="field">
+      <span>Your name</span>
+      <input id="name-input" maxlength="16" autocomplete="off" inputmode="text" placeholder="e.g. Sam" />
+    </label>
+
+    <div class="home-actions">
+      <button id="btn-create" class="btn btn-primary btn-lg">Create room</button>
+      <div class="join-row">
+        <input id="code-input" maxlength="4" autocomplete="off" inputmode="text" placeholder="CODE" autocapitalize="characters" />
+        <button id="btn-join" class="btn btn-secondary">Join</button>
+      </div>
+    </div>
+
+    <p id="home-error" class="error-text"></p>
+
+    <details class="rules">
+      <summary>How to play</summary>
+      <div class="rules-body">
+        <p><b>Goal:</b> first to 200 points.</p>
+        <p><b>On your turn,</b> tap <b>HIT</b> to draw or <b>STAY</b> to bank your round points.</p>
+        <p><b>Bust:</b> draw a number you already have and you lose all round points (unless you have a Second Chance).</p>
+        <p><b>Flip 7:</b> draw 7 different numbers in a round and you score +15 bonus and end the round.</p>
+        <p><b>Action cards:</b> Freeze locks a player out. Flip 3 forces a player to draw 3 more. Second Chance saves you from one bust.</p>
+        <p><b>Modifiers:</b> +2/+4/+6/+8/+10 add to your score. ×2 doubles your number-card total.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ===== ROOM LOBBY (in-room, waiting to start) ===== -->
+<section id="screen-room" class="screen hidden">
+  <header class="topbar">
+    <button id="btn-leave" class="btn btn-ghost btn-sm">← Leave</button>
+    <div class="room-code-wrap" id="room-code-wrap">
+      <div class="room-code-label">Room code</div>
+      <div class="room-code" id="room-code">—</div>
+    </div>
+    <button id="btn-share" class="btn btn-ghost btn-sm">Share</button>
+  </header>
+
+  <div class="lobby-body">
+    <p class="lobby-hint">Share the code or link. Game starts when host taps start.</p>
+    <ul id="lobby-players" class="player-list"></ul>
+    <div class="lobby-actions">
+      <button id="btn-start" class="btn btn-primary btn-lg">Start game</button>
+      <p id="lobby-status" class="muted"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== GAME ===== -->
+<section id="screen-game" class="screen hidden">
+  <header class="topbar game-topbar">
+    <button id="btn-leave-game" class="btn btn-ghost btn-sm">←</button>
+    <div class="round-info">
+      <div class="round-num" id="round-num">Round 1</div>
+      <div class="target-info">to <span id="target-score">200</span></div>
+    </div>
+    <div class="deck-info">
+      <div class="deck-card" id="deck-card">
+        <span id="deck-count">94</span>
+      </div>
+    </div>
+  </header>
+
+  <div id="lanes" class="lanes"></div>
+
+  <footer id="action-bar" class="action-bar"></footer>
+
+  <div id="toast" class="toast hidden"></div>
+</section>
+
+<!-- ===== ROUND END MODAL ===== -->
+<div id="modal-round-end" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="round-end-title">Round complete</h2>
+    <ul id="round-end-list" class="round-end-list"></ul>
+    <button id="btn-next-round" class="btn btn-primary btn-lg">Next round</button>
+    <p id="round-end-status" class="muted"></p>
+  </div>
+</div>
+
+<!-- ===== GAME OVER MODAL ===== -->
+<div id="modal-game-over" class="modal hidden">
+  <div class="modal-card">
+    <div class="winner-banner">🏆</div>
+    <h2 id="game-over-title">Winner!</h2>
+    <ul id="game-over-list" class="round-end-list"></ul>
+    <button id="btn-new-game" class="btn btn-primary btn-lg">Play again</button>
+    <button id="btn-back-home" class="btn btn-ghost">Back to home</button>
+  </div>
+</div>
+
+<!-- ===== TARGET PICKER MODAL ===== -->
+<div id="modal-target" class="modal hidden">
+  <div class="modal-card">
+    <h2 id="target-title">Choose target</h2>
+    <p id="target-subtitle" class="muted"></p>
+    <div id="target-list" class="target-list"></div>
+  </div>
+</div>
+
+<!-- ===== EVENT BANNER ===== -->
+<div id="event-banner" class="event-banner hidden">
+  <div class="event-banner-text" id="event-banner-text"></div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
