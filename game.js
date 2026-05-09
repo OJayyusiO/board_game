@@ -118,7 +118,7 @@ export class Game {
       };
     }
     this.turnStack = [{ type: 'turn', playerId: this.players[this.startingPlayerIdx].id }];
-    this._lastTurnPlayerIdx = this.startingPlayerIdx;
+    this._lastActorIdx = this.startingPlayerIdx;
     this.pendingAction = null;
     this.phase = 'playing';
     this.lastRoundSummary = null;
@@ -180,7 +180,7 @@ export class Game {
     if (this.activeFrame.type === 'forcedDraws') throw new Error('Must complete forced draws');
     this.lanes[playerId].status = 'stayed';
     this._emit({ type: 'stay', playerId });
-    // pop their turn frame
+    this._markActed(playerId);
     this.turnStack.pop();
     this._cleanupAndAdvance();
   }
@@ -206,22 +206,22 @@ export class Game {
       this.discard.push(card);
       targetLane.status = 'frozen';
       this._emit({ type: 'freeze', byPlayerId: playerId, targetId });
-      // Decrement drawer's forced-draws counter (the freeze counted as a draw)
-      this._consumeForcedDraw(playerId);
+      // End drawer's turn / decrement forced count
+      this._afterCardConsumed(playerId);
       // Remove any frames belonging to the frozen target
       this.turnStack = this.turnStack.filter(f => f.playerId !== targetId);
     } else if (action === 'flip3') {
       this.discard.push(card);
       this._emit({ type: 'flip3', byPlayerId: playerId, targetId });
-      // Decrement drawer's forced-draws counter first (flip3 was their draw)
-      this._consumeForcedDraw(playerId);
+      // End drawer's turn / decrement forced count first
+      this._afterCardConsumed(playerId);
       // Then push target's forced-draws frame on top
       this.turnStack.push({ type: 'forcedDraws', playerId: targetId, remaining: 3 });
     } else if (action === 'second_chance') {
       this.discard.push(card);
       targetLane.hasSecondChance = true;
       this._emit({ type: 'secondChanceGifted', byPlayerId: playerId, targetId });
-      this._consumeForcedDraw(playerId);
+      this._afterCardConsumed(playerId);
     }
 
     this._cleanupAndAdvance();
@@ -240,13 +240,14 @@ export class Game {
           // also discard a virtual SC card representation
           this.discard.push({ id: randomUUID(), kind: 'action', action: 'second_chance' });
           this._emit({ type: 'secondChanceUsed', playerId, value: card.value });
-          this._consumeForcedDraw(playerId);
+          this._afterCardConsumed(playerId);
           return;
         }
         // BUST
         lane.status = 'busted';
         this.discard.push(card);
         this._emit({ type: 'bust', playerId, value: card.value });
+        this._markActed(playerId);
         // remove all frames belonging to this player
         this.turnStack = this.turnStack.filter(f => f.playerId !== playerId);
         return;
@@ -258,13 +259,13 @@ export class Game {
         // round will end immediately via _cleanupAndAdvance
         return;
       }
-      this._consumeForcedDraw(playerId);
+      this._afterCardConsumed(playerId);
       return;
     }
 
     if (card.kind === 'modifier') {
       lane.modifiers.push(card);
-      this._consumeForcedDraw(playerId);
+      this._afterCardConsumed(playerId);
       return;
     }
 
@@ -273,7 +274,7 @@ export class Game {
         if (!lane.hasSecondChance) {
           lane.hasSecondChance = true;
           this._emit({ type: 'gainSecondChance', playerId });
-          this._consumeForcedDraw(playerId);
+          this._afterCardConsumed(playerId);
           return;
         }
         const eligible = this.players.filter(p =>
@@ -284,7 +285,7 @@ export class Game {
         if (eligible.length === 0) {
           this.discard.push(card);
           this._emit({ type: 'secondChanceDiscarded', playerId });
-          this._consumeForcedDraw(playerId);
+          this._afterCardConsumed(playerId);
           return;
         }
         this.pendingAction = { type: 'second_chance', byPlayerId: playerId, card };
@@ -296,15 +297,28 @@ export class Game {
     }
   }
 
-  _consumeForcedDraw(playerId) {
+  // After a single drawn card resolves successfully (no bust/flip7/pendingAction):
+  // - In a forcedDraws frame: decrement counter, pop when 0
+  // - In a turn frame: pop (one card per turn → control passes to next player)
+  _afterCardConsumed(playerId) {
     const frame = this.activeFrame;
     if (!frame) return;
-    if (frame.type === 'forcedDraws' && frame.playerId === playerId) {
+    if (frame.playerId !== playerId) return;
+    if (frame.type === 'forcedDraws') {
       frame.remaining--;
       if (frame.remaining <= 0) {
+        this._markActed(playerId);
         this.turnStack.pop();
       }
+    } else if (frame.type === 'turn') {
+      this._markActed(playerId);
+      this.turnStack.pop();
     }
+  }
+
+  _markActed(playerId) {
+    const idx = this.players.findIndex(p => p.id === playerId);
+    if (idx >= 0) this._lastActorIdx = idx;
   }
 
   _cleanupAndAdvance() {
@@ -326,13 +340,12 @@ export class Game {
     if (this.turnStack.length > 0) return; // still someone's turn
 
     // Need to find the next active player after the most recent player to act
-    const last = this._lastTurnPlayerIdx ?? this.startingPlayerIdx;
+    const last = this._lastActorIdx ?? this.startingPlayerIdx;
     const next = this._findNextActivePlayerAfter(last);
     if (!next) {
       this._endRound();
       return;
     }
-    this._lastTurnPlayerIdx = this.players.findIndex(p => p.id === next.id);
     this.turnStack.push({ type: 'turn', playerId: next.id });
   }
 
